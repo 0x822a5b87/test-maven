@@ -11,6 +11,8 @@
 
     <modules>
         <module>archetype/archetype</module>
+        <module>example</module>
+        <module>hello</module>
     </modules>
 
     <properties>
