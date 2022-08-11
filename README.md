@@ -12,6 +12,7 @@ test-maven
 - [maven-assembly-plugin 入门指南](https://www.jianshu.com/p/14bcb17b99e0)
 - [Lifecycle Reference](https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html#lifecycle-reference)
 - [dependencyManagement与dependencies区别](https://www.jianshu.com/p/c8666474cf9a)
+- [Maven打包之maven-shade-plugin](https://cloud.tencent.com/developer/article/1622207)
 
 ## Maven Getting Started Guide
 
@@ -387,7 +388,235 @@ mvn dependency:tree -Dverbose
 >
 >**例如，在我们上面的例子中，子pom只是声明了 `spring-web` 依赖，并没有声明版本。如果我们不声明这个依赖的话，子模块将不会有这个依赖。**
 
+## maven-shade-plugin 入门指南
 
+> maven-shade-plugin 将 goal shade:shade 绑定到 phase package 上。
+
+```xml
+ <build>
+     <plugins>
+         <plugin>
+             <groupId>org.apache.maven.plugins</groupId>
+             <artifactId>maven-shade-plugin</artifactId>
+             <version>2.4.3</version>
+             <configuration>
+                <!-- put your configurations here -->
+             </configuration>
+             <executions>
+                 <execution>
+                     <phase>package</phase>
+                     <goals>
+                        <goal>shade</goal>
+                     </goals>
+                 </execution>
+             </executions>
+         </plugin>
+     </plugins>
+ </build>
+```
+
+> 将该工程依赖的部分 Jar 包 include/exclude 掉。
+
+```xml
+<build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.4.3</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <artifactSet>
+                <excludes>
+                  <exclude>classworlds:classworlds</exclude>
+                  <exclude>junit:junit</exclude>
+                  <exclude>jmock:*</exclude>
+                  <exclude>*:xml-apis</exclude>
+                  <exclude>org.apache.maven:lib:tests</exclude>
+                  <exclude>log4j:log4j:jar:</exclude>
+                </excludes>
+              </artifactSet>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+</build>
+```
+
+## Maven打包之maven-shade-plugin
+
+### shade打包过程
+
+> shade插件绑定在maven的package阶段，他会将项目依赖的jar包解压并融合到项目自身编译文件中。
+>
+> 举个例子：例如我们的项目结构是
+
+```
+com.gavinzh.learn.shade
+    Main
+```
+
+> 假设我们依赖了一个jar包，他的项目结构是:
+
+```
+com.fake.test
+    A
+    B
+```
+
+> 那么shade会将这两个结构融合为一个结构:
+
+```
+com
+    gavinzh.learn.shade
+        Main
+    fake.test
+        A
+        B
+```
+
+### shade配置
+
+```xml
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <!--只包含该项目代码中用到的jar,在父项目中引入了，但在当前模块中没有用到就会被删掉-->
+                    <minimizeJar>true</minimizeJar>
+                    <!--重新定位类位置，就好像类是自己写的一样，修改别人jar包的package-->
+                    <relocations>
+                        <relocation>
+                            <pattern>com.alibaba.fastjson</pattern>
+                            <shadedPattern>com.gavinzh.learn.fastjson</shadedPattern>
+                            <excludes>
+                                <!--这些类和包不会被改变-->
+                                <exclude>com.alibaba.fastjson.not.Exists</exclude>
+                                <exclude>com.alibaba.fastjson.not.exists.*</exclude>
+                            </excludes>
+                        </relocation>
+                    </relocations>
+                </configuration>
+                <executions>
+                    <execution>
+                        <configuration>
+                            <!--创建一个你自己的标识符，位置在原有名称之后-->
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>gavinzh</shadedClassifierName>
+                            <!--在打包过程中对文件做一些处理工作-->
+                            <transformers>
+                                <!--在META-INF/MANIFEST.MF文件中添加key: value 可以设置Main方法-->
+                                <transformer
+                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <manifestEntries>
+                                        <mainClass>com.gavinzh.learn.shade.Main</mainClass>
+                                        <Build-Number>123</Build-Number>
+                                        <Built-By>your name</Built-By>
+                                        <X-Compile-Source-JDK>1.7</X-Compile-Source-JDK>
+                                        <X-Compile-Target-JDK>1.7</X-Compile-Target-JDK>
+                                    </manifestEntries>
+                                </transformer>
+                                <!--阻止META-INF/LICENSE和META-INF/LICENSE.txt-->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheLicenseResourceTransformer"/>
+                                <!--合并所有notice文件-->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+                                    <addHeader>true</addHeader>
+                                </transformer>
+                                <!--如果多个jar包在META-INF文件夹下含有相同的文件，那么需要将他们合并到一个文件里-->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.handlers</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.schemas</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.factories</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.tld</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring-form.tld</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>META-INF/spring.tooling</resource>
+                                </transformer>
+                                <!--如果多个jar包在META-INF文件夹下含有相同的xml文件，则需要聚合他们-->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ComponentsXmlResourceTransformer"/>
+                                <!--排除掉指定资源文件-->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.DontIncludeResourceTransformer">
+                                    <resource>.no_need</resource>
+                                </transformer>
+                                <!--将项目下的文件file额外加到resource中-->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.IncludeResourceTransformer">
+                                    <resource>META-INF/pom_test</resource>
+                                    <file>pom.xml</file>
+                                </transformer>
+                                <!--整合spi服务中META-INF/services/文件夹的相关配置-->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                        </configuration>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+```
+
+### shade 配置2
+
+> 1. 通过 `artifactSet` 来指定 artifactId；
+> 2. 
+
+```xml
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <!-- 只保留指定的 artifactId -->
+                            <artifactSet>
+                                <includes>
+                                    <include>com.google.guava:guava</include>
+                                </includes>
+                            </artifactSet>
+                            <!-- 移动包名 -->
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.google</pattern>
+                                    <shadedPattern>com.google.shaded</shadedPattern>
+                                </relocation>
+                            </relocations>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+```
 
 
 
