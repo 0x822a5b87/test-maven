@@ -11,6 +11,7 @@ test-maven
 - [maven-shade-plugin 入门指南](https://www.jianshu.com/p/7a0e20b30401)
 - [maven-assembly-plugin 入门指南](https://www.jianshu.com/p/14bcb17b99e0)
 - [Lifecycle Reference](https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html#lifecycle-reference)
+- [dependencyManagement与dependencies区别](https://www.jianshu.com/p/c8666474cf9a)
 
 ## Maven Getting Started Guide
 
@@ -336,11 +337,55 @@ mvn dependency:tree
 mvn dependency:tree -Dverbose
 ```
 
-### 依赖管理解决什么问题
+## dependencyManagement与dependencies区别
 
+>为了项目的正确运行，必须让所有的 `module` 使用依赖项的统一版本，必须确保应用的各个项目的依赖项和版本一致，才能保证测试的和发布的是相同的结果。在我们项目顶层的pom文件中，我们会看到dependencyManagement元素。通过它元素来管理jar包的版本，**让子项目中引用一个依赖而不用显示的列出版本号**。
+>
+>Maven会沿着父子层次向上走，直到找到一个拥有dependencyManagement元素的项目，然后它就会使用在这个dependencyManagement元素中指定的版本号。**注意，这里假设是 project -> parent -> parent's parent 的路径，并且在两个 parent 中都存在 dependencyManagement，那么以找到的第一个为准。**
 
+### 父pom
 
+```xml
+   <modules>
+        <module>module1</module>
+    </modules>
+    <properties>
+            <spring-version>3.1.1.RELEASE</spring-version>
+    </properties>
 
+    <dependencyManagement>
+          <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-web</artifactId>
+                <version>${spring-version}</version>
+          </dependency>
+    </dependencyManagement>
+```
+
+### 子pom
+
+```xml
+   <dependencies>
+            <dependency>
+                  <groupId>org.springframework</groupId>
+                  <artifactId>spring-web</artifactId>
+            </dependency>
+    </dependencies>
+```
+
+### 二、dependencies应用场景
+
+>相对于dependencyManagement，如果在父pom文件中中通过dependencies引入jar，将默认被所有的子模块继承。
+>
+>子模块如果希望有自己个性化的内容，可以在子模块中对于其中的某个属性进重新定义。
+
+### 三、dependencyManagement与dependencies区别
+
+>dependencyManagement里只是声明依赖，并不实现引入，因此子项目需要显式的声明需要用的依赖。如果不在子项目中声明依赖，是不会从父项目中继承下来的；只有在子项目中写了该依赖项，并且没有指定具体版本，才会从父项目中继承该项，并且version和scope都读取自父pom;另外如果子项目中指定了版本号，那么会使用子项目中指定的jar版本。
+>
+>dependencies即使在子模块中不写该依赖项，那么子模块仍然会从父项目中继承该依赖项（全部继承）。
+>
+>**例如，在我们上面的例子中，子pom只是声明了 `spring-web` 依赖，并没有声明版本。如果我们不声明这个依赖的话，子模块将不会有这个依赖。**
 
 
 
