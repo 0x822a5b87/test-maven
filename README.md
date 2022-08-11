@@ -620,7 +620,71 @@ com
 
 
 
+## maven-assembly-plugin 入门指南
 
+### 使用方法
+
+>使用 descriptorRefs(官方提供的定制化打包方式)，官方提供的 descriptorRef 有 
+>
+>- bin
+>- jar-with-dependencies
+>- src
+>- project。【不建议使用】
+
+> 使用 descriptors，指定打包文件 src/assembly/src.xml，在该配置文件内指定打包操作。
+
+```xml
+<project>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>3.0.0</version>
+        <configuration>
+          <descriptors>
+            <descriptor>src/assembly/src.xml</descriptor>
+          </descriptors>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+```
+
+### 描述符文件元素
+
+> id 标识符，添加到生成文件名称的后缀符。如果指定 id 的话，目标文件则是 artifactId-`{id}`.tar.gz
+
+```xml
+<id>release</id>
+```
+
+### formats
+
+> maven-assembly-plugin 支持的打包格式有zip、tar、tar.gz (or tgz)、tar.bz2 (or tbz2)、jar、dir、war，可以同时指定多个打包格式
+
+```xml
+  <formats>
+    <format>tar.gz</format>
+    <format>dir</format>
+  </formats>
+```
+
+### dependencySets
+
+| element           | type         | function                             |
+| ----------------- | ------------ | ------------------------------------ |
+| outputDirectory   | string       | 指定包依赖目录，该目录是相对于根目录 |
+| includes/include* | List<String> | 包含依赖                             |
+| excludes/exclude* | List<String> | 排除依赖                             |
+
+```xml
+<dependencySets>
+    <dependencySet>
+      <outputDirectory>/lib</outputDirectory>
+    </dependencySet>
+</dependencySets>
+```
 
 
 

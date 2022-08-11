@@ -15,6 +15,7 @@
         <module>hello</module>
         <module>conflict</module>
         <module>shade</module>
+        <module>assembly</module>
     </modules>
 
     <properties>
